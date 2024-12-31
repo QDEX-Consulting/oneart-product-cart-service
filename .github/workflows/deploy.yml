@@ -1,0 +1,47 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main  # Trigger the workflow on pushes to the main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Check out the code
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Step 2: Authenticate with GCP
+    - name: Authenticate with Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+    # Step 3: Set up GCP
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: qdex-401002
+        export_default_credentials: true
+
+    # Step 4: Build the Docker image
+    - name: Build Docker image
+      run: |
+        docker build -t asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:$GITHUB_SHA .
+
+    # Step 5: Push the Docker image to GCR
+    - name: Push Docker image
+      run: |
+        docker push asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:$GITHUB_SHA
+
+    # Step 6: Deploy to Cloud Run
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy oneart-product-cart-service \
+          --image asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:$GITHUB_SHA \
+          --region asia-southeast1 \
+          --platform managed \
+          --allow-unauthenticated
