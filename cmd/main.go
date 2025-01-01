@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 
@@ -19,6 +20,12 @@ import (
 func main() {
 	// Load config
 	cfg := configs.NewConfig()
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+		log.Printf("PORT not set, defaulting to: %s", port)
+	}
 
 	// Connect to DB
 	database, err := db.NewDB(cfg.DBDSN)
