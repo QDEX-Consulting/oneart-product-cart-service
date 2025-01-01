@@ -35,12 +35,14 @@ jobs:
     # Step 5: Build the Docker image
     - name: Build Docker image
       run: |
-        docker build -t asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:$GITHUB_SHA .
+        docker build -t asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:$GITHUB_SHA \
+                     -t asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:latest .
 
     # Step 6: Push the Docker image to Artifact Registry
     - name: Push Docker image
       run: |
-        docker push asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:$GITHUB_SHA
+        docker push asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:$GITHUB_SHA \
+                    asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:latest
 
     # Step 7: Deploy to Cloud Run
     - name: Deploy to Cloud Run
@@ -49,4 +51,6 @@ jobs:
           --image asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:$GITHUB_SHA \
           --region asia-southeast1 \
           --platform managed \
-          --allow-unauthenticated
+          --allow-unauthenticated \
+          --timeout=300s \
+          --update-env-vars="DB_DSN=postgres://postgres:oneart-secret@35.244.41.139:5432/postgres?sslmode=disable,GCS_BUCKET_NAME=oneart-product-images,JWT_SECRET=supersecret"
