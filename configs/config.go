@@ -20,7 +20,7 @@ func NewConfig() *Config {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080" // use 8082 if 8080 is used by identity-service
+		port = "8080" // Default to 8080 for Cloud Run compatibility
 		log.Printf("PORT not set, defaulting to: %s", port)
 	}
 
