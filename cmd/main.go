@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/mux"
 
@@ -21,63 +20,55 @@ func main() {
 	// Load config
 	cfg := configs.NewConfig()
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-		log.Printf("PORT not set, defaulting to: %s", port)
-	}
-
 	// Connect to DB
+	log.Println("Initializing database connection...")
 	database, err := db.NewDB(cfg.DBDSN)
 	if err != nil {
 		log.Fatal("Error connecting to DB:", err)
 	}
 	defer database.Close()
-
-	// Initialize repositories
-	productRepo := repository.NewProductRepository(database)
-	cartRepo := repository.NewCartRepository(database)
+	log.Println("Database connection established successfully!")
 
 	// Initialize GCS client
+	log.Println("Initializing GCS client...")
 	ctx := context.Background()
 	gcsClient, err := storage.NewGCSClient(ctx)
 	if err != nil {
 		log.Fatal("Error creating GCS client:", err)
 	}
+	log.Println("GCS client initialized successfully!")
 
-	// Pass productRepo & gcsClient to productService
+	// Initialize repositories and services
+	productRepo := repository.NewProductRepository(database)
+	cartRepo := repository.NewCartRepository(database)
 	productService := service.NewProductService(productRepo, gcsClient)
-	cartService := service.NewCartService(cartRepo, productRepo) // unchanged
+	cartService := service.NewCartService(cartRepo, productRepo)
 
-	// Handlers
+	// Initialize handlers
 	productHandler := handler.NewProductHandler(productService)
 	cartHandler := handler.NewCartHandler(cartService)
 
 	// Auth middleware
-	authMiddleware := middleware.NewAuthMiddleware(cfg.JWTSecret) // or "supersecret"
+	authMiddleware := middleware.NewAuthMiddleware(cfg.JWTSecret)
 
-	// Router
+	// Setup router
+	log.Println("Setting up router...")
 	r := mux.NewRouter()
 
-	// Public product endpoints
+	// Product endpoints
 	r.HandleFunc("/products", productHandler.ListProducts).Methods("GET")
 	r.HandleFunc("/products/{id}", productHandler.GetProduct).Methods("GET")
-
-	// NEW: Upload image endpoint (still "public" or you can add auth if you want)
 	r.HandleFunc("/products/{id}/upload-image", productHandler.UploadImage).Methods("POST")
 
-	// Protected cart endpoints
+	// Cart endpoints
 	cartRouter := r.PathPrefix("/cart").Subrouter()
 	cartRouter.Use(authMiddleware.JWTAuth)
 	cartRouter.HandleFunc("", cartHandler.AddToCart).Methods("POST")
 	cartRouter.HandleFunc("", cartHandler.GetCart).Methods("GET")
-	cartRouter.HandleFunc("/{productID}", cartHandler.UpdateCartItem).Methods("PUT")
-	cartRouter.HandleFunc("/{productID}", cartHandler.RemoveCartItem).Methods("DELETE")
-	cartRouter.HandleFunc("", cartHandler.ClearCart).Methods("DELETE")
 
 	// Start server
-	log.Printf("Product-Cart Service running on :%s\n", cfg.Port)
-	if err = http.ListenAndServe(":"+cfg.Port, r); err != nil {
+	log.Printf("Starting server on port %s...", cfg.Port)
+	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }

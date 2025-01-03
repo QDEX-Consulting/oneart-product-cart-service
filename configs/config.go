@@ -15,7 +15,7 @@ func NewConfig() *Config {
 	dbDSN := os.Getenv("DB_DSN")
 	if dbDSN == "" {
 		dbDSN = "postgres://postgres:oneart-secret@35.244.41.139:5432/postgres?sslmode=disable"
-		log.Printf("DB_DSN not sets, defaulting to: %s", dbDSN)
+		log.Printf("DB_DSN not set, defaulting to: %s", dbDSN)
 	}
 
 	port := os.Getenv("PORT")
