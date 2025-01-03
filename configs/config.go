@@ -14,7 +14,7 @@ type Config struct {
 func NewConfig() *Config {
 	dbDSN := os.Getenv("DB_DSN")
 	if dbDSN == "" {
-		dbDSN = "postgres://postgres:oneart-secret@35.244.41.139:5432/postgres?sslmode=disable"
+		dbDSN = "postgres://postgres:oneart-secret@/postgres?host=/cloudsql/qdex-401002:asia-south1:oneart-postgres"
 		log.Printf("DB_DSN not set, defaulting to: %s", dbDSN)
 	}
 
