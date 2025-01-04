@@ -58,7 +58,12 @@ func main() {
 	// Product endpoints
 	r.HandleFunc("/products", productHandler.ListProducts).Methods("GET")
 	r.HandleFunc("/products/{id}", productHandler.GetProduct).Methods("GET")
-	r.HandleFunc("/products/{id}/upload-image", productHandler.UploadImage).Methods("POST")
+	r.HandleFunc("/products", productHandler.CreateProduct).Methods("POST")
+	r.HandleFunc("/products/{id}", productHandler.UpdateProduct).Methods("PUT")
+	r.HandleFunc("/images/upload-temp", productHandler.UploadTempImage).Methods("POST")
+
+	// Secure routes with authMiddleware
+	r.Use(authMiddleware.JWTAuth)
 
 	// Cart endpoints
 	cartRouter := r.PathPrefix("/cart").Subrouter()

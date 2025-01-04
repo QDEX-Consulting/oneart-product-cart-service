@@ -8,13 +8,10 @@ import (
 )
 
 type ProductRepository interface {
-	// Existing methods
-	ListProducts(filter map[string]interface{}) ([]domain.Product, error)
+	ListProducts(filters map[string]interface{}) ([]domain.Product, error)
 	GetProductByID(id int64) (*domain.Product, error)
-	UpdateProductImageURL(productID int64, imageURL string) error
-
-	// New method
 	CreateProduct(product *domain.Product) error
+	UpdateProduct(product *domain.Product) error
 }
 
 type productRepository struct {
@@ -25,110 +22,71 @@ func NewProductRepository(db *sql.DB) ProductRepository {
 	return &productRepository{db: db}
 }
 
-// ListProducts retrieves products based on filters.
-func (r *productRepository) ListProducts(filter map[string]interface{}) ([]domain.Product, error) {
-	query := `SELECT id, name, price, offer_price, category, country_of_origin, dimensions,
-                     artist_name, image_url, created_at, updated_at
-              FROM products
-              WHERE 1=1`
-	// Dynamically build filters
+// ListProducts retrieves products based on optional filters
+func (r *productRepository) ListProducts(filters map[string]interface{}) ([]domain.Product, error) {
+	query := `
+        SELECT id, name, description, price, image_url, created_at, updated_at
+        FROM products
+        WHERE 1=1`
+
 	var args []interface{}
-	if category, ok := filter["category"]; ok && category != "" {
-		query += " AND category = ?"
+	if category, ok := filters["category"]; ok {
+		query += " AND category = $1"
 		args = append(args, category)
 	}
-	query = queryWithDollarParams(query) // Convert '?' to '$1, $2...' for PostgreSQL
 
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("ListProducts query error: %v", err)
+		return nil, fmt.Errorf("error querying products: %w", err)
 	}
 	defer rows.Close()
 
 	var products []domain.Product
 	for rows.Next() {
-		var p domain.Product
-		err := rows.Scan(
-			&p.ID,
-			&p.Name,
-			&p.Price,
-			&p.OfferPrice,
-			&p.Category,
-			&p.CountryOfOrigin,
-			&p.Dimensions,
-			&p.ArtistName,
-			&p.ImageURL,
-			&p.CreatedAt,
-			&p.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
+		var product domain.Product
+		if err := rows.Scan(&product.ID, &product.Name, &product.Description, &product.Price, &product.ImageURL, &product.CreatedAt, &product.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("error scanning product row: %w", err)
 		}
-		products = append(products, p)
+		products = append(products, product)
 	}
 	return products, nil
 }
 
-// GetProductByID retrieves a product by its ID.
+// GetProductByID retrieves a single product by its ID
 func (r *productRepository) GetProductByID(id int64) (*domain.Product, error) {
-	query := `SELECT id, name, price, offer_price, category, country_of_origin,
-                     dimensions, artist_name, image_url, created_at, updated_at
-              FROM products
-              WHERE id = $1`
-
-	var p domain.Product
-	err := r.db.QueryRow(query, id).Scan(
-		&p.ID,
-		&p.Name,
-		&p.Price,
-		&p.OfferPrice,
-		&p.Category,
-		&p.CountryOfOrigin,
-		&p.Dimensions,
-		&p.ArtistName,
-		&p.ImageURL,
-		&p.CreatedAt,
-		&p.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &p, nil
-}
-
-// UpdateProductImageURL updates the image URL for a specific product.
-func (r *productRepository) UpdateProductImageURL(productID int64, imageURL string) error {
 	query := `
-        UPDATE products
-        SET image_url = $1, updated_at = NOW()
-        WHERE id = $2
-    `
-	_, err := r.db.Exec(query, imageURL, productID)
-	return err
+        SELECT id, name, description, price, image_url, created_at, updated_at
+        FROM products
+        WHERE id = $1`
+
+	var product domain.Product
+	err := r.db.QueryRow(query, id).Scan(&product.ID, &product.Name, &product.Description, &product.Price, &product.ImageURL, &product.CreatedAt, &product.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil // No product found
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving product: %w", err)
+	}
+	return &product, nil
 }
 
-// CreateProduct inserts a new product into the database.
+// CreateProduct inserts a new product into the database
 func (r *productRepository) CreateProduct(product *domain.Product) error {
 	query := `
-        INSERT INTO products (name, description, price, quantity, category, image_url, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        INSERT INTO products (name, description, price, image_url, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
         RETURNING id, created_at, updated_at`
-	return r.db.QueryRow(query, product.Name, product.Description, product.Price, product.Quantity, product.Category, product.ImageURL).
+
+	return r.db.QueryRow(query, product.Name, product.Description, product.Price, product.ImageURL).
 		Scan(&product.ID, &product.CreatedAt, &product.UpdatedAt)
 }
 
-// Helper to convert '?' placeholders into '$1', '$2' for PostgreSQL.
-func queryWithDollarParams(query string) string {
-	var count int
-	out := []rune{}
-	for _, r := range query {
-		if r == '?' {
-			count++
-			placeholder := fmt.Sprintf("$%d", count)
-			out = append(out, []rune(placeholder)...)
-		} else {
-			out = append(out, r)
-		}
-	}
-	return string(out)
+// UpdateProduct updates an existing product in the database
+func (r *productRepository) UpdateProduct(product *domain.Product) error {
+	query := `
+        UPDATE products
+        SET name = $1, description = $2, price = $3, image_url = $4, updated_at = NOW()
+        WHERE id = $5`
+	_, err := r.db.Exec(query, product.Name, product.Description, product.Price, product.ImageURL, product.ID)
+	return err
 }
