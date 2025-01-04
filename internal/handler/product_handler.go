@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/QDEX-Core/oneart-product-cart-service/internal/domain"
 	"github.com/QDEX-Core/oneart-product-cart-service/internal/service"
 	"github.com/gorilla/mux"
 )
@@ -99,4 +100,20 @@ func (h *ProductHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"image_url": url,
 	})
+}
+
+func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
+	var req domain.Product
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.productService.CreateProduct(&req); err != nil {
+		http.Error(w, "Failed to create product", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(req)
 }

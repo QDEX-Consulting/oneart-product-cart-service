@@ -51,11 +51,11 @@ jobs:
     # Step 7: Deploy to Cloud Run
     - name: Deploy to Cloud Run
       run: |
-        gcloud run deploy oneart-product-cart-service \
-          --image asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:latest \
-          --region asia-southeast1 \
-          --allow-unauthenticated \
-          --vpc-connector my-connector \
-          --add-cloudsql-instances=qdex-401002:asia-south1:oneart-postgres \
-          --timeout=300s \
-          --update-env-vars="DB_DSN=postgres://postgres:oneart-secret@35.244.41.139:5432/postgres?sslmode=disable,GCS_BUCKET_NAME=oneart-product-images,JWT_SECRET=supersecret"
+       gcloud run deploy oneart-product-cart-service \
+         --image asia-southeast1-docker.pkg.dev/qdex-401002/gcr/oneart-product-cart-service:latest \
+         --region asia-southeast1 \
+         --allow-unauthenticated \
+         --vpc-connector my-connector \
+         --add-cloudsql-instances=qdex-401002:asia-south1:oneart-postgres \
+         --timeout=300s \
+         --update-env-vars="DB_DSN=postgres://postgres:oneart-secret@/postgres?host=/cloudsql/qdex-401002:asia-south1:oneart-postgres,GCS_BUCKET_NAME=oneart-product-images,JWT_SECRET=supersecret"

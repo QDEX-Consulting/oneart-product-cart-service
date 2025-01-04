@@ -8,12 +8,13 @@ import (
 )
 
 type ProductRepository interface {
-	// Existing
+	// Existing methods
 	ListProducts(filter map[string]interface{}) ([]domain.Product, error)
 	GetProductByID(id int64) (*domain.Product, error)
-
-	// NEW: Must be declared in the interface
 	UpdateProductImageURL(productID int64, imageURL string) error
+
+	// New method
+	CreateProduct(product *domain.Product) error
 }
 
 type productRepository struct {
@@ -24,26 +25,19 @@ func NewProductRepository(db *sql.DB) ProductRepository {
 	return &productRepository{db: db}
 }
 
-// ------------------------------------
-// Implementation of interface methods
-// ------------------------------------
-
-// 1) ListProducts
+// ListProducts retrieves products based on filters.
 func (r *productRepository) ListProducts(filter map[string]interface{}) ([]domain.Product, error) {
 	query := `SELECT id, name, price, offer_price, category, country_of_origin, dimensions,
                      artist_name, image_url, created_at, updated_at
               FROM products
               WHERE 1=1`
-	// We'll build filters dynamically (example: category)
+	// Dynamically build filters
 	var args []interface{}
-
 	if category, ok := filter["category"]; ok && category != "" {
 		query += " AND category = ?"
 		args = append(args, category)
 	}
-
-	// Convert ? → $1, $2 for Postgres
-	query = queryWithDollarParams(query)
+	query = queryWithDollarParams(query) // Convert '?' to '$1, $2...' for PostgreSQL
 
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
@@ -63,7 +57,7 @@ func (r *productRepository) ListProducts(filter map[string]interface{}) ([]domai
 			&p.CountryOfOrigin,
 			&p.Dimensions,
 			&p.ArtistName,
-			&p.ImageURL, // <--- scanning image_url
+			&p.ImageURL,
 			&p.CreatedAt,
 			&p.UpdatedAt,
 		)
@@ -75,7 +69,7 @@ func (r *productRepository) ListProducts(filter map[string]interface{}) ([]domai
 	return products, nil
 }
 
-// 2) GetProductByID
+// GetProductByID retrieves a product by its ID.
 func (r *productRepository) GetProductByID(id int64) (*domain.Product, error) {
 	query := `SELECT id, name, price, offer_price, category, country_of_origin,
                      dimensions, artist_name, image_url, created_at, updated_at
@@ -92,7 +86,7 @@ func (r *productRepository) GetProductByID(id int64) (*domain.Product, error) {
 		&p.CountryOfOrigin,
 		&p.Dimensions,
 		&p.ArtistName,
-		&p.ImageURL, // <--- scanning image_url
+		&p.ImageURL,
 		&p.CreatedAt,
 		&p.UpdatedAt,
 	)
@@ -102,7 +96,7 @@ func (r *productRepository) GetProductByID(id int64) (*domain.Product, error) {
 	return &p, nil
 }
 
-// 3) UpdateProductImageURL (NEW)
+// UpdateProductImageURL updates the image URL for a specific product.
 func (r *productRepository) UpdateProductImageURL(productID int64, imageURL string) error {
 	query := `
         UPDATE products
@@ -113,7 +107,17 @@ func (r *productRepository) UpdateProductImageURL(productID int64, imageURL stri
 	return err
 }
 
-// Helper to replace '?' with '$1' etc. in queries
+// CreateProduct inserts a new product into the database.
+func (r *productRepository) CreateProduct(product *domain.Product) error {
+	query := `
+        INSERT INTO products (name, description, price, quantity, category, image_url, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        RETURNING id, created_at, updated_at`
+	return r.db.QueryRow(query, product.Name, product.Description, product.Price, product.Quantity, product.Category, product.ImageURL).
+		Scan(&product.ID, &product.CreatedAt, &product.UpdatedAt)
+}
+
+// Helper to convert '?' placeholders into '$1', '$2' for PostgreSQL.
 func queryWithDollarParams(query string) string {
 	var count int
 	out := []rune{}
@@ -121,9 +125,7 @@ func queryWithDollarParams(query string) string {
 		if r == '?' {
 			count++
 			placeholder := fmt.Sprintf("$%d", count)
-			for _, rr := range placeholder {
-				out = append(out, rr)
-			}
+			out = append(out, []rune(placeholder)...)
 		} else {
 			out = append(out, r)
 		}
