@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors" // Added CORS package
 
 	"github.com/QDEX-Core/oneart-product-cart-service/configs"
 	"github.com/QDEX-Core/oneart-product-cart-service/internal/db"
@@ -71,9 +72,17 @@ func main() {
 	cartRouter.HandleFunc("", cartHandler.AddToCart).Methods("POST")
 	cartRouter.HandleFunc("", cartHandler.GetCart).Methods("GET")
 
+	// Apply CORS middleware
+	corsMiddleware := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000", "http://127.0.0.1:3000"}, // Add allowed frontend origins
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowCredentials: true,
+	}).Handler(r)
+
 	// Start server
 	log.Printf("Starting server on port %s...", cfg.Port)
-	if err := http.ListenAndServe(":"+cfg.Port, r); err != nil {
+	if err := http.ListenAndServe(":"+cfg.Port, corsMiddleware); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }
