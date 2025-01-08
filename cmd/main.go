@@ -72,9 +72,9 @@ func main() {
 	cartRouter.HandleFunc("", cartHandler.AddToCart).Methods("POST")
 	cartRouter.HandleFunc("", cartHandler.GetCart).Methods("GET")
 
-	// Apply CORS middleware
+	// Add CORS middleware to allow frontend connections
 	corsMiddleware := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "http://127.0.0.1:3000"}, // Add allowed frontend origins
+		AllowedOrigins:   []string{"http://localhost:8081", "http://127.0.0.1:8081"}, // Add allowed frontend origins
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
