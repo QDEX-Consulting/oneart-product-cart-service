@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"cloud.google.com/go/storage"
 )
@@ -54,6 +55,25 @@ func (g *GCSClient) UploadImage(ctx context.Context, objectName string, data []b
 	// Construct a public URL if the bucket or object is publicly accessible.
 	// For a private bucket, you'd use signed URLs instead.
 	url := fmt.Sprintf("https://storage.googleapis.com/%s/%s", g.bucketName, objectName)
+
+	return url, nil
+}
+
+// GenerateSignedURL generates a signed URL for the specified object in the bucket.
+// The URL will be valid for the duration specified by expiry.
+func (g *GCSClient) GenerateSignedURL(objectName string, expiry time.Duration) (string, error) {
+	opts := &storage.SignedURLOptions{
+		Method:         "GET",
+		Expires:        time.Now().Add(expiry),
+		GoogleAccessID: os.Getenv("GCS_SERVICE_ACCOUNT_EMAIL"), // Service account email
+		PrivateKey:     []byte(os.Getenv("GCS_PRIVATE_KEY")),   // Service account private key
+	}
+
+	// Generate the signed URL
+	url, err := storage.SignedURL(g.bucketName, objectName, opts)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate signed URL: %w", err)
+	}
 
 	return url, nil
 }

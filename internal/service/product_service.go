@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/QDEX-Core/oneart-product-cart-service/internal/domain"
 	"github.com/QDEX-Core/oneart-product-cart-service/internal/repository"
@@ -34,7 +35,22 @@ func (s *productService) ListProducts(filters map[string]interface{}) ([]domain.
 }
 
 func (s *productService) GetProduct(id int64) (*domain.Product, error) {
-	return s.repo.GetProductByID(id)
+	// Fetch the product from the repository
+	product, err := s.repo.GetProductByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate a signed URL for the product image if an image URL exists
+	if product.ImageURL != "" {
+		signedURL, err := s.gcsClient.GenerateSignedURL(product.ImageURL, time.Hour)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate signed URL: %w", err)
+		}
+		product.ImageURL = signedURL
+	}
+
+	return product, nil
 }
 
 func (s *productService) CreateProduct(product *domain.Product) error {
