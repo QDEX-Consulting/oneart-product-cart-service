@@ -58,4 +58,4 @@ jobs:
          --vpc-connector my-connector \
          --add-cloudsql-instances=qdex-401002:asia-south1:oneart-postgres \
          --timeout=300s \
-         --update-env-vars="DB_DSN=postgres://postgres:oneart-secret@/postgres?host=/cloudsql/qdex-401002:asia-south1:oneart-postgres,GCS_BUCKET_NAME=oneart-product-images,JWT_SECRET=supersecret"
+         --update-env-vars="DB_DSN=postgres://postgres:oneart-secret@/postgres?host=/cloudsql/qdex-401002:asia-south1:oneart-postgres,GCS_BUCKET_NAME=oneart-product-images,JWT_SECRET=supersecret,GCS_SERVICE_ACCOUNT_EMAIL=oneart-terraform-service-accou@qdex-401002.iam.gserviceaccount.com,GCS_PRIVATE_KEY=$(echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' | jq -r '.private_key')"

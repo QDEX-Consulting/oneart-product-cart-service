@@ -59,18 +59,20 @@ func (g *GCSClient) UploadImage(ctx context.Context, objectName string, data []b
 	return url, nil
 }
 
-// GenerateSignedURL generates a signed URL for the specified object in the bucket.
-// The URL will be valid for the duration specified by expiry.
 func (g *GCSClient) GenerateSignedURL(objectName string, expiry time.Duration) (string, error) {
-	opts := &storage.SignedURLOptions{
-		Method:         "GET",
-		Expires:        time.Now().Add(expiry),
-		GoogleAccessID: os.Getenv("GCS_SERVICE_ACCOUNT_EMAIL"), // Service account email
-		PrivateKey:     []byte(os.Getenv("GCS_PRIVATE_KEY")),   // Service account private key
+	googleAccessID := os.Getenv("GCS_SERVICE_ACCOUNT_EMAIL")
+	privateKey := os.Getenv("GCS_PRIVATE_KEY")
+
+	if googleAccessID == "" || privateKey == "" {
+		return "", fmt.Errorf("missing GCS_SERVICE_ACCOUNT_EMAIL or GCS_PRIVATE_KEY")
 	}
 
-	// Generate the signed URL
-	url, err := storage.SignedURL(g.bucketName, objectName, opts)
+	url, err := storage.SignedURL(g.bucketName, objectName, &storage.SignedURLOptions{
+		Method:         "GET",
+		Expires:        time.Now().Add(expiry),
+		GoogleAccessID: googleAccessID,
+		PrivateKey:     []byte(privateKey),
+	})
 	if err != nil {
 		return "", fmt.Errorf("failed to generate signed URL: %w", err)
 	}
