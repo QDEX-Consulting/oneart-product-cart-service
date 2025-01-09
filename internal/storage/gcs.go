@@ -79,3 +79,7 @@ func (g *GCSClient) GenerateSignedURL(objectName string, expiry time.Duration) (
 
 	return url, nil
 }
+
+func (g *GCSClient) GetBucketName() string {
+	return g.bucketName
+}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/QDEX-Core/oneart-product-cart-service/internal/domain"
@@ -41,9 +42,17 @@ func (s *productService) GetProduct(id int64) (*domain.Product, error) {
 		return nil, err
 	}
 
-	// Generate a signed URL for the product image if an image URL exists
+	// Ensure the ImageURL contains only the object name
 	if product.ImageURL != "" {
-		signedURL, err := s.gcsClient.GenerateSignedURL(product.ImageURL, time.Hour)
+		// Extract object name from the URL if needed
+		objectName := product.ImageURL
+		if strings.HasPrefix(objectName, "https://storage.googleapis.com/") {
+			// Remove the base URL prefix
+			objectName = strings.TrimPrefix(objectName, "https://storage.googleapis.com/"+s.gcsClient.GetBucketName()+"/")
+		}
+
+		// Generate a signed URL for the object
+		signedURL, err := s.gcsClient.GenerateSignedURL(objectName, time.Hour)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate signed URL: %w", err)
 		}
