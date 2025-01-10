@@ -32,7 +32,33 @@ func NewProductService(repo repository.ProductRepository, gcsClient *storage.GCS
 }
 
 func (s *productService) ListProducts(filters map[string]interface{}) ([]domain.Product, error) {
-	return s.repo.ListProducts(filters)
+	// Fetch the products from the repository
+	products, err := s.repo.ListProducts(filters)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate signed URLs for each product's ImageURL
+	for i, product := range products {
+		if product.ImageURL != "" {
+			// Extract object name from the URL if needed
+			objectName := product.ImageURL
+			if strings.HasPrefix(objectName, "https://storage.googleapis.com/") {
+				objectName = strings.TrimPrefix(objectName, "https://storage.googleapis.com/"+s.gcsClient.GetBucketName()+"/")
+			}
+
+			// Generate a signed URL for the object
+			signedURL, err := s.gcsClient.GenerateSignedURL(objectName, time.Hour)
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate signed URL for product %d: %w", product.ID, err)
+			}
+
+			// Update the product's ImageURL with the signed URL
+			products[i].ImageURL = signedURL
+		}
+	}
+
+	return products, nil
 }
 
 func (s *productService) GetProduct(id int64) (*domain.Product, error) {
